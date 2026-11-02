@@ -1,0 +1,65 @@
+<Window x:Class="MuseWiser.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:MuseWiser.ViewModels"
+        mc:Ignorable="d"
+        Title="MuseWiser 設定"
+        Width="380"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        d:DataContext="{d:DesignInstance vm:SettingsViewModel}">
+    <StackPanel Margin="16">
+        <TextBlock Text="配置・サイズ設定" FontSize="16" FontWeight="Bold" Margin="0,0,0,12" />
+
+        <TextBlock Text="モニタ" Margin="0,0,0,4" />
+        <ComboBox ItemsSource="{Binding Monitors}"
+                  SelectedItem="{Binding SelectedMonitor}"
+                  DisplayMemberPath="DisplayName"
+                  Margin="0,0,0,12" />
+
+        <TextBlock Text="アンカー（配置基準位置）" Margin="0,0,0,4" />
+        <ComboBox ItemsSource="{Binding Anchors}"
+                  SelectedItem="{Binding SelectedAnchor}"
+                  Margin="0,0,0,12" />
+
+        <Grid Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="幅 (px)" Margin="0,0,0,4" />
+                <TextBox Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="高さ (px)" Margin="0,0,0,4" />
+                <TextBox Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="X オフセット (px)" Margin="0,0,0,4" />
+                <TextBox Text="{Binding OffsetX, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Y オフセット (px)" Margin="0,0,0,4" />
+                <TextBox Text="{Binding OffsetY, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="キャンセル" Width="90" Margin="0,0,8,0" Command="{Binding CancelCommand}" IsCancel="True" />
+            <Button Content="保存" Width="90" Command="{Binding SaveCommand}" IsDefault="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>
