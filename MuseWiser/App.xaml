@@ -7,8 +7,8 @@
     <Application.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <conv:LevelSegmentBrushMultiConverter x:Key="LevelSegmentBrushMultiConverter" />
-        <conv:SpectrumBarHeightConverter x:Key="SpectrumBarHeightConverter" />
-        <conv:SpectrumLevelBrushConverter x:Key="SpectrumLevelBrushConverter" />
+        <conv:SpectrumSegmentBrushMultiConverter x:Key="SpectrumSegmentBrushMultiConverter" />
+        <conv:SpectrumPeakSegmentBrushMultiConverter x:Key="SpectrumPeakSegmentBrushMultiConverter" />
 
         <tb:TaskbarIcon x:Key="TrayIcon" ToolTipText="MuseWiser">
             <tb:TaskbarIcon.ContextMenu>

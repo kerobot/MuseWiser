@@ -31,26 +31,35 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
     public static IReadOnlyList<int> SpectrumBandIndices { get; } = Enumerable.Range(0, SpectrumBandCount).ToArray();
 
     /// <summary>
-    /// スペクトラムバンドごとの周波数ラベル（20Hz〜20kHz を対数スケールで配置）。
+    /// スペクトラムバンド 1 列あたりのブロック（LED セグメント）インデックス一覧。
+    /// 上から下（高レベル→低レベル）へ描画するため、降順（11〜0）で並べている。
+    /// XAML からの ItemsSource バインディング用。
+    /// </summary>
+    public static IReadOnlyList<int> SpectrumSegmentIndices { get; } = Enumerable.Range(0, SpectrumBandViewModel.SegmentCount).Reverse().ToArray();
+
+    /// <summary>
+    /// 各スペクトラムバンドの開始周波数（Hz）。<see cref="Services.Audio.WasapiLoopbackAudioService"/> の
+    /// バンド境界と一致させる必要がある。
+    /// </summary>
+    private static readonly double[] SpectrumBandStartFrequencies =
+    [
+        20, 30, 40, 70, 120, 190, 310, 490, 780, 1200, 1900, 3100, 5000, 7900, 12000, 20000
+    ];
+
+    /// <summary>
+    /// スペクトラムバンドごとの周波数ラベル。SPAN 系アナライザーに準じた固定の目盛り
+    /// （20, 30, 40, 70, 120, 190, 310, 490, 780, 1.2k, 1.9k, 3.1k, 5.0k, 7.9k, 12k, 20k）を使用する。
     /// XAML からの ItemsSource バインディング用。
     /// </summary>
     public static IReadOnlyList<string> SpectrumBandLabels { get; } = CreateSpectrumBandLabels();
 
-    private const float SpectrumLabelMinFrequencyHz = 20f;
-    private const float SpectrumLabelMaxFrequencyHz = 20000f;
-
     private static IReadOnlyList<string> CreateSpectrumBandLabels()
     {
         var labels = new string[SpectrumBandCount];
-        var logMin = Math.Log(SpectrumLabelMinFrequencyHz);
-        var logMax = Math.Log(SpectrumLabelMaxFrequencyHz);
 
         for (var i = 0; i < SpectrumBandCount; i++)
         {
-            var frequency = i == SpectrumBandCount - 1
-                ? SpectrumLabelMaxFrequencyHz
-                : Math.Exp(logMin + (logMax - logMin) * i / SpectrumBandCount);
-            labels[i] = FormatFrequency(frequency);
+            labels[i] = FormatFrequency(SpectrumBandStartFrequencies[i]);
         }
 
         return labels;
@@ -63,7 +72,7 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
             var kilo = frequency / 1000.0;
             return kilo >= 10
                 ? $"{kilo:0}k"
-                : $"{kilo:0.#}k";
+                : $"{kilo:0.0}k";
         }
 
         return $"{frequency:0}";
@@ -72,7 +81,20 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
     private const int SpectrumBandCount = 16;
     private const double SpectrumDecayPerTick = 0.12;
 
+    /// <summary>
+    /// ピークホールドの保持時間（ティック数）。33ms ティックで約0.5秒相当。
+    /// </summary>
+    private const int PeakHoldTicks = 15;
+
+    /// <summary>
+    /// ピークホールド保持後の減衰量（1ティックあたり、0.0〜1.0 スケール）。
+    /// 音量メーターの <see cref="DecayPerTick"/> と同程度のゆっくりした減衰にする。
+    /// </summary>
+    private const double PeakDecayPerTick = DecayPerTick;
+
     private readonly double[] _spectrumTargets = new double[SpectrumBandCount];
+    private readonly double[] _spectrumPeakValues = new double[SpectrumBandCount];
+    private readonly int[] _spectrumPeakHoldTicks = new int[SpectrumBandCount];
 
     /// <summary>
     /// 現在のスペクトラムレベル（0.0〜1.0）と周波数ラベルを保持する要素一覧。
@@ -138,9 +160,14 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
         _leftTarget = 0;
         _rightTarget = 0;
         Array.Clear(_spectrumTargets);
+        Array.Clear(_spectrumPeakValues);
+        Array.Clear(_spectrumPeakHoldTicks);
         for (var i = 0; i < SpectrumBands.Count; i++)
         {
-            SpectrumBands[i].Level = 0;
+            var band = SpectrumBands[i];
+            band.Level = 0;
+            band.ActiveSegmentCount = 0;
+            band.PeakSegmentIndex = -1;
         }
     }
 
@@ -185,13 +212,47 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
 
         for (var i = 0; i < SpectrumBands.Count; i++)
         {
-            var current = SpectrumBands[i].Level;
-            var next = StepTowards(current, _spectrumTargets[i], SpectrumDecayPerTick);
-            if (next != current)
-            {
-                SpectrumBands[i].Level = next;
-            }
+            var band = SpectrumBands[i];
+            var next = StepTowards(band.Level, _spectrumTargets[i], SpectrumDecayPerTick);
+            band.Level = next;
+
+            // 連続値のレベルを 0〜SegmentCount の整数へ量子化する。
+            // int プロパティへの代入は既定の等価比較により、値が変化しない限り
+            // PropertyChanged が発火せず、無駄な再描画を避けられる。
+            var quantizedLevel = (int)Math.Round(next * SpectrumBandViewModel.SegmentCount, MidpointRounding.AwayFromZero);
+            band.ActiveSegmentCount = Math.Clamp(quantizedLevel, 0, SpectrumBandViewModel.SegmentCount);
+
+            UpdateSpectrumPeak(band, i, quantizedLevel);
         }
+    }
+
+    /// <summary>
+    /// スペクトラムバンドのピークホールド表示を更新する。
+    /// 現在の量子化レベルが保持中のピークを超えたら即座にピークを更新し、
+    /// 超えていなければ一定ティック数（<see cref="PeakHoldTicks"/>）だけ保持したうえで
+    /// ゆっくり減衰させる（音量メーターの減衰と同程度）。
+    /// </summary>
+    private void UpdateSpectrumPeak(SpectrumBandViewModel band, int bandIndex, int quantizedLevel)
+    {
+        if (quantizedLevel >= _spectrumPeakValues[bandIndex])
+        {
+            _spectrumPeakValues[bandIndex] = quantizedLevel;
+            _spectrumPeakHoldTicks[bandIndex] = PeakHoldTicks;
+        }
+        else if (_spectrumPeakHoldTicks[bandIndex] > 0)
+        {
+            _spectrumPeakHoldTicks[bandIndex]--;
+        }
+        else
+        {
+            var decayed = _spectrumPeakValues[bandIndex] - PeakDecayPerTick * SpectrumBandViewModel.SegmentCount;
+            _spectrumPeakValues[bandIndex] = decayed < quantizedLevel ? quantizedLevel : decayed;
+        }
+
+        var peakLevel = (int)Math.Round(_spectrumPeakValues[bandIndex], MidpointRounding.AwayFromZero);
+        band.PeakSegmentIndex = peakLevel > 0
+            ? Math.Clamp(peakLevel, 1, SpectrumBandViewModel.SegmentCount) - 1
+            : -1;
     }
 
     private static double StepTowards(double current, double target, double decayPerTick = DecayPerTick)
@@ -213,14 +274,36 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
 }
 
 /// <summary>
-/// スペクトラム 1 バンド分の周波数ラベルとレベル（0.0〜1.0）を保持する。
+/// スペクトラム 1 バンド分の周波数ラベルとブロック（LED セグメント）表示用の状態を保持する。
+/// 連続値のレベルは内部の減衰計算用に保持し、UI へは量子化済みの整数値のみを公開することで、
+/// 点灯状態に変化がないティックでは <see cref="PropertyChanged"/> が発火せず、不要な再描画を避ける。
 /// </summary>
 public sealed partial class SpectrumBandViewModel : ViewModelBase
 {
+    /// <summary>
+    /// スペクトラムバンド 1 列あたりのブロック（LED セグメント）数。
+    /// </summary>
+    public const int SegmentCount = 12;
+
     public string Label { get; }
 
+    /// <summary>
+    /// 内部の減衰計算用に保持する連続値のレベル（0.0〜1.0）。UI へは公開しない。
+    /// </summary>
+    internal double Level { get; set; }
+
+    /// <summary>
+    /// 点灯しているブロック数（0〜<see cref="SegmentCount"/>）。UI バインド対象。
+    /// </summary>
     [ObservableProperty]
-    private double _level;
+    private int _activeSegmentCount;
+
+    /// <summary>
+    /// ピークホールドで表示するブロックのインデックス（0〜<see cref="SegmentCount"/> - 1）。
+    /// 非表示の場合は -1。UI バインド対象。
+    /// </summary>
+    [ObservableProperty]
+    private int _peakSegmentIndex = -1;
 
     public SpectrumBandViewModel(string label)
     {

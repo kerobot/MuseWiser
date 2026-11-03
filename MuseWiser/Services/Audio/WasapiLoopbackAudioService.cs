@@ -14,11 +14,20 @@ namespace MuseWiser.Services.Audio;
 public sealed class WasapiLoopbackAudioService : IAudioCaptureService
 {
     /// <summary>
-    /// スペクトラム計算用 FFT サイズ（2 のべき乗）。
+    /// FFT サイズの基準値と、その基準となるサンプルレート。
+    /// サンプルレートが高いほど同じ時間窓を保つために FFT サイズを大きくし、
+    /// 低域の周波数分解能（1 ビンあたりの Hz 幅）を確保する。
     /// </summary>
-    private const int FftSize = 1024;
+    private const int BaseFftSize = 2048;
 
-    private const int FftPow = 10; // 2^10 = 1024
+    private const int BaseSampleRate = 44100;
+
+    /// <summary>
+    /// FFT サイズの下限・上限（2 のべき乗）。
+    /// </summary>
+    private const int MinFftLength = 1024;
+
+    private const int MaxFftLength = 16384;
 
     /// <summary>
     /// 表示するスペクトラムバンド数（PlayMuse 風 16 バンド LED を想定）。
@@ -26,18 +35,27 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
     private const int SpectrumBandCount = 16;
 
     /// <summary>
+    /// スペクトラムバンドの境界周波数（Hz）。SpectrumBandCount + 1 個の境界で SpectrumBandCount 個のバンドを定義する。
+    /// SPAN 系アナライザーの一般的な目盛りに合わせた固定値。
+    /// </summary>
+    private static readonly double[] SpectrumBandBoundaries =
+    [
+        20, 30, 40, 70, 120, 190, 310, 490, 780, 1200, 1900, 3100, 5000, 7900, 12000, 20000, 20000
+    ];
+
+    /// <summary>
     /// スペクトラム表示の下限（この dB 以下は無音扱い）。
     /// </summary>
     private const double SpectrumMinDecibels = -70.0;
-
-    private const float MinFrequencyHz = 20f;
 
     private readonly ILogger<WasapiLoopbackAudioService> _logger;
     private readonly object _gate = new();
     private readonly MMDeviceEnumerator _enumerator = new();
 
-    private readonly float[] _fftCircularBuffer = new float[FftSize];
-    private readonly Complex[] _fftWorkBuffer = new Complex[FftSize];
+    private int _fftSize = BaseFftSize;
+    private int _fftPow = (int)Math.Log2(BaseFftSize);
+    private float[] _fftCircularBuffer = new float[BaseFftSize];
+    private Complex[] _fftWorkBuffer = new Complex[BaseFftSize];
     private int _fftWritePos;
     private int _fftFilledCount;
     private int _fftSamplesSinceLastCompute;
@@ -135,6 +153,7 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
             recorder.DataAvailable += OnDataAvailable;
 
             _sampleRate = recorder.WaveFormat.SampleRate > 0 ? recorder.WaveFormat.SampleRate : 44100;
+            UpdateFftSizeForSampleRate(_sampleRate);
             _fftWritePos = 0;
             _fftFilledCount = 0;
             _fftSamplesSinceLastCompute = 0;
@@ -344,19 +363,49 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
     /// L/R をミックスしたモノラルサンプルを FFT 用のリングバッファへ書き込む。
     /// 十分なサンプル数が溜まったら FFT を計算し、<see cref="_lastSpectrum"/> を更新する。
     /// </summary>
+    /// <summary>
+    /// サンプルレートに応じて FFT サイズを決定する。基準（44.1kHz 付近）では <see cref="BaseFftSize"/> を用い、
+    /// サンプルレートが高いほど低域の周波数分解能を維持するために FFT サイズを比例して拡大する。
+    /// </summary>
+    private void UpdateFftSizeForSampleRate(int sampleRate)
+    {
+        var ratio = (double)sampleRate / BaseSampleRate;
+        var desired = BaseFftSize * ratio;
+
+        var size = MinFftLength;
+        while (size < desired && size < MaxFftLength)
+        {
+            size *= 2;
+        }
+
+        if (size == _fftSize)
+        {
+            return;
+        }
+
+        _fftSize = size;
+        _fftPow = (int)Math.Log2(size);
+        _fftCircularBuffer = new float[size];
+        _fftWorkBuffer = new Complex[size];
+        _fftWritePos = 0;
+        _fftFilledCount = 0;
+        _fftSamplesSinceLastCompute = 0;
+    }
+
     private void PushFftSample(float sample)
     {
+        var fftSize = _fftSize;
         _fftCircularBuffer[_fftWritePos] = sample;
-        _fftWritePos = (_fftWritePos + 1) % FftSize;
-        if (_fftFilledCount < FftSize)
+        _fftWritePos = (_fftWritePos + 1) % fftSize;
+        if (_fftFilledCount < fftSize)
         {
             _fftFilledCount++;
         }
 
         _fftSamplesSinceLastCompute++;
 
-        // 描画負荷を抑えるため、バッファが満タンかつ一定間隔（FFTSize の 1/4）ごとに再計算する。
-        if (_fftFilledCount >= FftSize && _fftSamplesSinceLastCompute >= FftSize / 4)
+        // 描画負荷を抑えるため、バッファが満タンかつ一定間隔（FFTサイズの 1/4）ごとに再計算する。
+        if (_fftFilledCount >= fftSize && _fftSamplesSinceLastCompute >= fftSize / 4)
         {
             _fftSamplesSinceLastCompute = 0;
             ComputeSpectrum();
@@ -365,47 +414,60 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
 
     private void ComputeSpectrum()
     {
+        var fftSize = _fftSize;
+
         // リングバッファを時系列順に並べ替えつつ、Hamming 窓を適用して複素配列へコピーする。
-        for (var i = 0; i < FftSize; i++)
+        // 窓関数の合計値（windowSum）は、窓によるゲイン損失を後段で補正するために保持しておく。
+        var windowSum = 0.0;
+        for (var i = 0; i < fftSize; i++)
         {
-            var index = (_fftWritePos + i) % FftSize;
-            var window = (float)FastFourierTransform.HammingWindow(i, FftSize);
+            var index = (_fftWritePos + i) % fftSize;
+            var window = (float)FastFourierTransform.HammingWindow(i, fftSize);
+            windowSum += window;
             _fftWorkBuffer[i].X = _fftCircularBuffer[index] * window;
             _fftWorkBuffer[i].Y = 0f;
         }
 
-        FastFourierTransform.FFT(true, FftPow, _fftWorkBuffer);
+        FastFourierTransform.FFT(true, _fftPow, _fftWorkBuffer);
+
+        // NAudio の FFT(forward=true) は内部で 1/FftSize にスケーリングするため、
+        // 窓関数のゲイン損失（windowSum 分だけ振幅が小さくなる）と片側スペクトラム分を
+        // 2 * FftSize / windowSum で補正し、0dBFS を基準とした振幅に揃える。
+        var normalization = windowSum > 0 ? 2.0 * fftSize / windowSum : 1.0;
 
         var spectrum = new float[SpectrumBandCount];
-        var binCount = FftSize / 2;
+        var binCount = fftSize / 2;
         var sampleRate = _sampleRate;
 
-        // 可聴域（約 20Hz〜ナイキスト周波数）を対数スケールで SpectrumBandCount 個のバンドに分割する。
+        // 可聴域を、SPAN系アナライザーに準じた固定の周波数境界（SpectrumBandBoundaries）で
+        // SpectrumBandCount 個のバンドに分割する（対数均等割りではなく固定目盛りを使用）。
         var maxFrequency = sampleRate / 2f;
-        var logMin = Math.Log(MinFrequencyHz);
-        var logMax = Math.Log(maxFrequency);
 
         for (var band = 0; band < SpectrumBandCount; band++)
         {
-            var bandStartFreq = Math.Exp(logMin + (logMax - logMin) * band / SpectrumBandCount);
-            var bandEndFreq = Math.Exp(logMin + (logMax - logMin) * (band + 1) / SpectrumBandCount);
+            var bandStartFreq = SpectrumBandBoundaries[band];
+            var bandEndFreq = SpectrumBandBoundaries[band + 1];
 
             var binStart = Math.Max(1, (int)(bandStartFreq / maxFrequency * binCount));
-            var binEnd = Math.Max(binStart + 1, (int)(bandEndFreq / maxFrequency * binCount));
+            var binEnd = Math.Max(binStart + 1, (int)Math.Ceiling(bandEndFreq / maxFrequency * binCount));
             binEnd = Math.Min(binEnd, binCount);
 
-            float magnitudeSum = 0f;
-            var count = 0;
+            // バンド内で最も大きいビンの振幅をそのバンドの代表値として採用する（平均ではなく最大値）。
+            // 平均を取ると、特に高域側のように1バンドに含まれるビン数が多い場合にピーク成分が
+            // 薄まってしまい、実際より不自然に弱いレベルとして表示されるため。
+            float maxMagnitude = 0f;
             for (var bin = binStart; bin < binEnd; bin++)
             {
                 var re = _fftWorkBuffer[bin].X;
                 var im = _fftWorkBuffer[bin].Y;
-                magnitudeSum += MathF.Sqrt(re * re + im * im);
-                count++;
+                var magnitude = MathF.Sqrt(re * re + im * im);
+                if (magnitude > maxMagnitude)
+                {
+                    maxMagnitude = magnitude;
+                }
             }
 
-            var magnitude = count > 0 ? magnitudeSum / count : 0f;
-            spectrum[band] = (float)ToSpectrumScale(magnitude);
+            spectrum[band] = (float)ToSpectrumScale(maxMagnitude * (float)normalization);
         }
 
         _lastSpectrum = spectrum;

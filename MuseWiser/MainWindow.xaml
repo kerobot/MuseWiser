@@ -34,6 +34,26 @@
                     </Border.Background>
                 </Border>
             </DataTemplate>
+            <DataTemplate x:Key="SpectrumSegmentTemplate">
+                <Grid Height="6" Margin="0,1">
+                    <Border CornerRadius="1">
+                        <Border.Background>
+                            <MultiBinding Converter="{StaticResource SpectrumSegmentBrushMultiConverter}">
+                                <Binding RelativeSource="{RelativeSource AncestorType=ItemsControl}" Path="DataContext.ActiveSegmentCount" />
+                                <Binding />
+                            </MultiBinding>
+                        </Border.Background>
+                    </Border>
+                    <Border CornerRadius="1">
+                        <Border.Background>
+                            <MultiBinding Converter="{StaticResource SpectrumPeakSegmentBrushMultiConverter}">
+                                <Binding RelativeSource="{RelativeSource AncestorType=ItemsControl}" Path="DataContext.PeakSegmentIndex" />
+                                <Binding />
+                            </MultiBinding>
+                        </Border.Background>
+                    </Border>
+                </Grid>
+            </DataTemplate>
             <Style x:Key="WeatherStatCaptionStyle" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="10" />
                 <Setter Property="Foreground" Value="#88FFFFFF" />
@@ -186,12 +206,16 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Height="48" Margin="2,0" VerticalAlignment="Bottom"
-                                Background="#22FFFFFF" CornerRadius="2">
-                            <Border VerticalAlignment="Bottom"
-                                    Height="{Binding Level, Converter={StaticResource SpectrumBarHeightConverter}, ConverterParameter=48}"
-                                    Background="{Binding Level, Converter={StaticResource SpectrumLevelBrushConverter}}"
-                                    CornerRadius="2" />
+                        <Border Height="96" Margin="2,0" VerticalAlignment="Bottom"
+                                Background="#22FFFFFF" CornerRadius="2" Padding="2">
+                            <ItemsControl ItemsSource="{x:Static vm:VolumeMeterViewModel.SpectrumSegmentIndices}"
+                                          ItemTemplate="{StaticResource SpectrumSegmentTemplate}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Rows="{x:Static vm:SpectrumBandViewModel.SegmentCount}" Columns="1" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
