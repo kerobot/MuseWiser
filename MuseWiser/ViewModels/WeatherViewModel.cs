@@ -1,8 +1,8 @@
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using MuseWiser.Models.Weather;
+using MuseWiser.Services.Settings;
 using MuseWiser.Services.Weather;
 
 namespace MuseWiser.ViewModels;
@@ -13,9 +13,10 @@ namespace MuseWiser.ViewModels;
 public sealed partial class WeatherViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly IWeatherService _weatherService;
+    private readonly ISettingsService _settingsService;
     private readonly ILogger<WeatherViewModel> _logger;
-    private readonly TimeSpan _updateInterval;
-    private readonly CancellationTokenSource _cts = new();
+    private TimeSpan _updateInterval;
+    private CancellationTokenSource _cts = new();
     private Task? _updateLoopTask;
 
     [ObservableProperty]
@@ -66,11 +67,63 @@ public sealed partial class WeatherViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private bool _hasData;
 
-    public WeatherViewModel(IWeatherService weatherService, IOptions<WeatherSettings> settings, ILogger<WeatherViewModel> logger)
+    [ObservableProperty]
+    private string _iconUrl = string.Empty;
+
+    public WeatherViewModel(IWeatherService weatherService, ISettingsService settingsService, ILogger<WeatherViewModel> logger)
     {
         _weatherService = weatherService;
+        _settingsService = settingsService;
         _logger = logger;
-        _updateInterval = TimeSpan.FromMinutes(Math.Max(1, settings.Value.UpdateIntervalMinutes));
+        _updateInterval = TimeSpan.FromMinutes(Math.Max(1, _settingsService.Load().WeatherUpdateIntervalMinutes));
+    }
+
+    /// <summary>
+    /// 設定変更時などに即時で天気情報を再取得し、更新間隔も再読込して定期更新ループを再起動する。
+    /// </summary>
+    public void RefreshNow()
+    {
+        var intervalMinutes = Math.Max(1, _settingsService.Load().WeatherUpdateIntervalMinutes);
+        var newInterval = TimeSpan.FromMinutes(intervalMinutes);
+
+        if (newInterval == _updateInterval && _updateLoopTask is not null)
+        {
+            _ = RefreshAsync(_cts.Token);
+            return;
+        }
+
+        _updateInterval = newInterval;
+        RestartUpdateLoop();
+    }
+
+    private void RestartUpdateLoop()
+    {
+        var previousCts = _cts;
+        var previousLoopTask = _updateLoopTask;
+
+        _cts = new CancellationTokenSource();
+
+        _updateLoopTask = RunUpdateLoopAsync(_cts.Token);
+
+        _ = StopPreviousLoopAsync(previousCts, previousLoopTask);
+    }
+
+    private static async Task StopPreviousLoopAsync(CancellationTokenSource previousCts, Task? previousLoopTask)
+    {
+        previousCts.Cancel();
+
+        if (previousLoopTask is not null)
+        {
+            try
+            {
+                await previousLoopTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        previousCts.Dispose();
     }
 
     /// <summary>
@@ -109,11 +162,21 @@ public sealed partial class WeatherViewModel : ViewModelBase, IAsyncDisposable
             {
                 Apply(weather);
             }
+            else
+            {
+                Clear();
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "天気情報の更新中にエラーが発生しました。");
         }
+    }
+
+    private void Clear()
+    {
+        HasData = false;
+        IconUrl = string.Empty;
     }
 
     private void Apply(WeatherInfo weather)
@@ -133,6 +196,9 @@ public sealed partial class WeatherViewModel : ViewModelBase, IAsyncDisposable
         RainVolumeValue = $"{weather.RainVolume:F1} mm";
         WindSpeedValue = $"{weather.WindSpeed.ToString("F1", CultureInfo.InvariantCulture)} m/s";
         WindDirectionValue = weather.WindDirection;
+        IconUrl = string.IsNullOrWhiteSpace(weather.IconCode)
+            ? string.Empty
+            : $"https://openweathermap.org/img/wn/{weather.IconCode}@2x.png";
         HasData = true;
     }
 

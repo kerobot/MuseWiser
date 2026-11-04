@@ -29,12 +29,17 @@ public sealed class DisplaySettings
     public double OffsetY { get; set; }
 
     /// <summary>
-    /// ウィンドウの幅（ピクセル）。
+    /// デザイン基準サイズ（540×540）に対する表示倍率。
     /// </summary>
-    public double Width { get; set; } = 600;
+    public double Scale { get; set; } = 1.0;
 
     /// <summary>
-    /// ウィンドウの高さ（ピクセル）。
+    /// OpenWeather API キー。未設定の場合は天気情報欄を表示しない。
     /// </summary>
-    public double Height { get; set; } = 600;
+    public string? WeatherApiKey { get; set; }
+
+    /// <summary>
+    /// 天気情報の更新間隔（分）。未指定の場合は60分とする。
+    /// </summary>
+    public int WeatherUpdateIntervalMinutes { get; set; } = 60;
 }

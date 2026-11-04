@@ -3,16 +3,16 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MuseWiser.Models.Weather;
+using MuseWiser.Services.Settings;
 
 namespace MuseWiser.Services.Weather;
 
 /// <summary>
 /// OpenWeather の Current Weather Data API を呼び出して天気情報を取得するサービス。
-/// API キーは環境変数 "WEATHER_API_KEY" から取得する。
+/// API キーは表示設定（settings.json）の "WeatherApiKey" から取得する。
 /// </summary>
 public sealed class OpenWeatherService : IWeatherService
 {
-    private const string ApiKeyEnvironmentVariableName = "WEATHER_API_KEY";
     private const string BaseUrl = "https://api.openweathermap.org/data/2.5/weather";
 
     private static readonly string[] WindDirections16 =
@@ -25,21 +25,23 @@ public sealed class OpenWeatherService : IWeatherService
 
     private readonly HttpClient _httpClient;
     private readonly WeatherSettings _settings;
+    private readonly ISettingsService _settingsService;
     private readonly ILogger<OpenWeatherService> _logger;
 
-    public OpenWeatherService(HttpClient httpClient, IOptions<WeatherSettings> settings, ILogger<OpenWeatherService> logger)
+    public OpenWeatherService(HttpClient httpClient, IOptions<WeatherSettings> settings, ISettingsService settingsService, ILogger<OpenWeatherService> logger)
     {
         _httpClient = httpClient;
         _settings = settings.Value;
+        _settingsService = settingsService;
         _logger = logger;
     }
 
     public async Task<WeatherInfo?> GetCurrentWeatherAsync(CancellationToken cancellationToken = default)
     {
-        var apiKey = Environment.GetEnvironmentVariable(ApiKeyEnvironmentVariableName);
+        var apiKey = _settingsService.Load().WeatherApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            _logger.LogWarning("環境変数 {EnvVar} が設定されていないため、天気情報を取得できません。", ApiKeyEnvironmentVariableName);
+            _logger.LogWarning("設定ファイルに OpenWeather APIキーが設定されていないため、天気情報を取得できません。");
             return null;
         }
 
@@ -78,6 +80,7 @@ public sealed class OpenWeatherService : IWeatherService
             RainVolume = response.Rain?.OneHour ?? 0,
             WindSpeed = response.Wind?.Speed ?? 0,
             WindDirection = ToCompassDirection(response.Wind?.Deg ?? 0),
+            IconCode = condition?.Icon ?? string.Empty,
         };
     }
 

@@ -22,16 +22,19 @@ public sealed partial class SettingsViewModel : ViewModelBase
     private ScreenAnchor _selectedAnchor;
 
     [ObservableProperty]
-    private double _width;
-
-    [ObservableProperty]
-    private double _height;
+    private int _scalePercent;
 
     [ObservableProperty]
     private double _offsetX;
 
     [ObservableProperty]
     private double _offsetY;
+
+    [ObservableProperty]
+    private string? _weatherApiKey;
+
+    [ObservableProperty]
+    private int _weatherUpdateIntervalMinutes;
 
     public IReadOnlyList<MonitorInfo> Monitors { get; }
 
@@ -62,10 +65,11 @@ public sealed partial class SettingsViewModel : ViewModelBase
             ?? Monitors.FirstOrDefault(m => m.IsPrimary)
             ?? Monitors.FirstOrDefault();
         SelectedAnchor = settings.Anchor;
-        Width = settings.Width;
-        Height = settings.Height;
+        ScalePercent = (int)Math.Round(settings.Scale * 100, MidpointRounding.AwayFromZero);
         OffsetX = settings.OffsetX;
         OffsetY = settings.OffsetY;
+        WeatherApiKey = settings.WeatherApiKey;
+        WeatherUpdateIntervalMinutes = settings.WeatherUpdateIntervalMinutes;
     }
 
     [RelayCommand]
@@ -75,10 +79,11 @@ public sealed partial class SettingsViewModel : ViewModelBase
         {
             MonitorDeviceName = SelectedMonitor?.DeviceName,
             Anchor = SelectedAnchor,
-            Width = Width,
-            Height = Height,
+            Scale = (ScalePercent > 0 ? ScalePercent : 100) / 100.0,
             OffsetX = OffsetX,
             OffsetY = OffsetY,
+            WeatherApiKey = WeatherApiKey,
+            WeatherUpdateIntervalMinutes = WeatherUpdateIntervalMinutes > 0 ? WeatherUpdateIntervalMinutes : 60,
         };
 
         _settingsService.Save(settings);

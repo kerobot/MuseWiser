@@ -25,4 +25,5 @@ public sealed class WeatherInfo
     public double RainVolume { get; init; }
     public double WindSpeed { get; init; }
     public string WindDirection { get; init; } = string.Empty;
+    public string IconCode { get; init; } = string.Empty;
 }

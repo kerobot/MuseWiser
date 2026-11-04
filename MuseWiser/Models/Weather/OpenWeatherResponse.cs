@@ -21,6 +21,9 @@ internal sealed class OpenWeatherConditionItem
     public string? Main { get; set; }
 
     public string? Description { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("icon")]
+    public string? Icon { get; set; }
 }
 
 internal sealed class OpenWeatherMain

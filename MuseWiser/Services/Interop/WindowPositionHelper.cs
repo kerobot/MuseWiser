@@ -16,9 +16,23 @@ public static class WindowPositionHelper
     private const double MinWindowSize = 100;
 
     /// <summary>
+    /// デザイン基準サイズ（ピクセル）。'MainWindow.xaml' の内部 Grid の基準幅・高さと一致させる。
+    /// </summary>
+    private const double BaseDesignSize = 540;
+
+    /// <summary>
+    /// 天気情報欄が占有するデザイン上の高さ（ピクセル）の推定固定値。
+    /// 実機での見た目に応じてチューニングが必要。
+    /// </summary>
+    private const double WeatherSectionHeight = 184;
+
+    /// <summary>
     /// 指定した設定をウィンドウへ適用する（Left/Top/Width/Height を設定）。
     /// </summary>
-    public static void Apply(Window window, DisplaySettings settings)
+    /// <param name="window">対象ウィンドウ。</param>
+    /// <param name="settings">表示設定。</param>
+    /// <param name="weatherVisible">天気情報欄を表示するかどうか。</param>
+    public static void Apply(Window window, DisplaySettings settings, bool weatherVisible)
     {
         var monitor = MonitorHelper.ResolveMonitor(settings.MonitorDeviceName);
         var scale = GetDpiScale(window);
@@ -30,8 +44,9 @@ public static class WindowPositionHelper
             monitor.WorkingArea.Width / scale.X,
             monitor.WorkingArea.Height / scale.Y);
 
-        var width = Math.Max(MinWindowSize, settings.Width);
-        var height = Math.Max(MinWindowSize, settings.Height);
+        var designHeight = BaseDesignSize - (weatherVisible ? 0 : WeatherSectionHeight);
+        var width = Math.Max(MinWindowSize, BaseDesignSize * settings.Scale);
+        var height = Math.Max(MinWindowSize, designHeight * settings.Scale);
 
         var (anchorX, anchorY) = GetAnchorOrigin(settings.Anchor, workingArea, width, height);
 
