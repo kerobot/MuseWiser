@@ -31,7 +31,7 @@ public sealed class DisplaySettings
     /// <summary>
     /// ウィンドウの幅（ピクセル）。
     /// </summary>
-    public double Width { get; set; } = 620;
+    public double Width { get; set; } = 600;
 
     /// <summary>
     /// ウィンドウの高さ（ピクセル）。

@@ -39,7 +39,6 @@ public static class WindowPositionHelper
         window.Height = height;
         window.Left = anchorX + settings.OffsetX;
         window.Top = anchorY + settings.OffsetY;
-
     }
 
     private static (double X, double Y) GetAnchorOrigin(ScreenAnchor anchor, Rect workingArea, double width, double height)

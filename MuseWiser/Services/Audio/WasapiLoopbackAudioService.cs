@@ -504,4 +504,3 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
         _disposed = true;
     }
 }
-
