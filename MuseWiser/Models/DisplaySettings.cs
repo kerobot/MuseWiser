@@ -42,4 +42,9 @@ public sealed class DisplaySettings
     /// 天気情報の更新間隔（分）。未指定の場合は60分とする。
     /// </summary>
     public int WeatherUpdateIntervalMinutes { get; set; } = 60;
+
+    /// <summary>
+    /// ウィンドウの Z オーダー（最前面表示/最背面表示）。
+    /// </summary>
+    public WindowTopmostMode WindowTopmostMode { get; set; } = WindowTopmostMode.Topmost;
 }

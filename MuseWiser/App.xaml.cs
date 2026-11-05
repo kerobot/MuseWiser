@@ -56,7 +56,11 @@ namespace MuseWiser
 
                 var settingsService = _host.Services.GetRequiredService<ISettingsService>();
                 var displaySettings = settingsService.Load();
-                mainWindow.SourceInitialized += (_, _) => WindowPositionHelper.Apply(mainWindow, displaySettings, ((MainViewModel)mainWindow.DataContext).Weather.HasData);
+                mainWindow.SourceInitialized += (_, _) =>
+                {
+                    WindowPositionHelper.Apply(mainWindow, displaySettings, ((MainViewModel)mainWindow.DataContext).Weather.HasData);
+                    WindowZOrderHelper.Apply(mainWindow, displaySettings);
+                };
 
                 mainWindow.Show();
             }
@@ -114,6 +118,7 @@ namespace MuseWiser
                 {
                     var mainViewModel = (MainViewModel)mainWindow.DataContext;
                     WindowPositionHelper.Apply(mainWindow, settings, mainViewModel.Weather.HasData);
+                    WindowZOrderHelper.Apply(mainWindow, settings);
                     mainViewModel.Weather.RefreshNow();
                 };
 

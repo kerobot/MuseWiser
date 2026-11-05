@@ -36,6 +36,20 @@ public sealed partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private int _weatherUpdateIntervalMinutes;
 
+    [ObservableProperty]
+    private bool _isTopmost;
+
+    public bool IsBottommost
+    {
+        get => !IsTopmost;
+        set => IsTopmost = !value;
+    }
+
+    partial void OnIsTopmostChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsBottommost));
+    }
+
     public IReadOnlyList<MonitorInfo> Monitors { get; }
 
     public IReadOnlyList<ScreenAnchor> Anchors { get; } = Enum.GetValues<ScreenAnchor>();
@@ -70,6 +84,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         OffsetY = settings.OffsetY;
         WeatherApiKey = settings.WeatherApiKey;
         WeatherUpdateIntervalMinutes = settings.WeatherUpdateIntervalMinutes;
+        IsTopmost = settings.WindowTopmostMode == WindowTopmostMode.Topmost;
     }
 
     [RelayCommand]
@@ -84,6 +99,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             OffsetY = OffsetY,
             WeatherApiKey = WeatherApiKey,
             WeatherUpdateIntervalMinutes = WeatherUpdateIntervalMinutes > 0 ? WeatherUpdateIntervalMinutes : 60,
+            WindowTopmostMode = IsTopmost ? WindowTopmostMode.Topmost : WindowTopmostMode.Bottommost,
         };
 
         _settingsService.Save(settings);

@@ -15,7 +15,6 @@
         Background="Transparent"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
-        Topmost="True"
         WindowStartupLocation="Manual"
         Left="40"
         Top="40"
