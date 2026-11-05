@@ -47,4 +47,9 @@ public sealed class DisplaySettings
     /// ウィンドウの Z オーダー（最前面表示/最背面表示）。
     /// </summary>
     public WindowTopmostMode WindowTopmostMode { get; set; } = WindowTopmostMode.Topmost;
+
+    /// <summary>
+    /// OS 起動時にアプリを自動起動するかどうか。
+    /// </summary>
+    public bool AutoStartEnabled { get; set; }
 }

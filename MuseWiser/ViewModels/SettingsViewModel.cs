@@ -50,6 +50,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsBottommost));
     }
 
+    [ObservableProperty]
+    private bool _autoStartEnabled;
+
     public IReadOnlyList<MonitorInfo> Monitors { get; }
 
     public IReadOnlyList<ScreenAnchor> Anchors { get; } = Enum.GetValues<ScreenAnchor>();
@@ -85,6 +88,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         WeatherApiKey = settings.WeatherApiKey;
         WeatherUpdateIntervalMinutes = settings.WeatherUpdateIntervalMinutes;
         IsTopmost = settings.WindowTopmostMode == WindowTopmostMode.Topmost;
+        AutoStartEnabled = settings.AutoStartEnabled;
     }
 
     [RelayCommand]
@@ -100,9 +104,11 @@ public sealed partial class SettingsViewModel : ViewModelBase
             WeatherApiKey = WeatherApiKey,
             WeatherUpdateIntervalMinutes = WeatherUpdateIntervalMinutes > 0 ? WeatherUpdateIntervalMinutes : 60,
             WindowTopmostMode = IsTopmost ? WindowTopmostMode.Topmost : WindowTopmostMode.Bottommost,
+            AutoStartEnabled = AutoStartEnabled,
         };
 
         _settingsService.Save(settings);
+        AutoStartHelper.Apply(AutoStartEnabled);
         SettingsSaved?.Invoke(this, settings);
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }

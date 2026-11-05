@@ -56,6 +56,8 @@
             <RadioButton Content="最背面表示" IsChecked="{Binding IsBottommost}" />
         </StackPanel>
 
+        <CheckBox Content="OS 起動時に自動起動する" IsChecked="{Binding AutoStartEnabled}" Margin="0,0,0,16" />
+
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="キャンセル" Width="90" Margin="0,0,8,0" Command="{Binding CancelCommand}" IsCancel="True" />
             <Button Content="保存" Width="90" Command="{Binding SaveCommand}" IsDefault="True" />
