@@ -35,15 +35,6 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
     private const int SpectrumBandCount = 16;
 
     /// <summary>
-    /// スペクトラムバンドの境界周波数（Hz）。SpectrumBandCount + 1 個の境界で SpectrumBandCount 個のバンドを定義する。
-    /// SPAN 系アナライザーの一般的な目盛りに合わせた固定値。
-    /// </summary>
-    private static readonly double[] SpectrumBandBoundaries =
-    [
-        20, 30, 40, 70, 120, 190, 310, 490, 780, 1200, 1900, 3100, 5000, 7900, 12000, 20000, 20000
-    ];
-
-    /// <summary>
     /// スペクトラム表示の下限（この dB 以下は無音扱い）。
     /// </summary>
     private const double SpectrumMinDecibels = -70.0;
@@ -439,17 +430,17 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
         var binCount = fftSize / 2;
         var sampleRate = _sampleRate;
 
-        // 可聴域を、SPAN系アナライザーに準じた固定の周波数境界（SpectrumBandBoundaries）で
+        // 可聴域を、各バンドの代表周波数の幾何平均から求めた境界（SpectrumBandDefinitions）で
         // SpectrumBandCount 個のバンドに分割する（対数均等割りではなく固定目盛りを使用）。
-        var maxFrequency = sampleRate / 2f;
+        var bands = SpectrumBandDefinitions.Bands;
+        var binHz = (double)sampleRate / fftSize;
 
         for (var band = 0; band < SpectrumBandCount; band++)
         {
-            var bandStartFreq = SpectrumBandBoundaries[band];
-            var bandEndFreq = SpectrumBandBoundaries[band + 1];
+            var bandRange = bands[band];
 
-            var binStart = Math.Max(1, (int)(bandStartFreq / maxFrequency * binCount));
-            var binEnd = Math.Max(binStart + 1, (int)Math.Ceiling(bandEndFreq / maxFrequency * binCount));
+            var binStart = Math.Max(1, (int)Math.Floor(bandRange.LowFrequencyHz / binHz));
+            var binEnd = Math.Max(binStart + 1, (int)Math.Ceiling(bandRange.HighFrequencyHz / binHz));
             binEnd = Math.Min(binEnd, binCount);
 
             // バンド内で最も大きいビンの振幅をそのバンドの代表値として採用する（平均ではなく最大値）。
