@@ -10,6 +10,7 @@ public static class WindowClickThroughHelper
     private const int GWL_EXSTYLE = -20;
     private const int WS_EX_TRANSPARENT = 0x00000020;
     private const int WS_EX_LAYERED = 0x00080000;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
     private static extern int GetWindowLong32(IntPtr hWnd, int nIndex);
@@ -50,6 +51,16 @@ public static class WindowClickThroughHelper
     {
         var extendedStyle = GetWindowLongPtr(windowHandle, GWL_EXSTYLE);
         var newStyle = extendedStyle | WS_EX_LAYERED | WS_EX_TRANSPARENT;
+        SetWindowLongPtr(windowHandle, GWL_EXSTYLE, new IntPtr(newStyle));
+    }
+
+    /// <summary>
+    /// 指定したウィンドウハンドルを Alt + Tab の切り替え候補から除外する拡張スタイルを設定する。
+    /// </summary>
+    public static void ExcludeFromAltTab(IntPtr windowHandle)
+    {
+        var extendedStyle = GetWindowLongPtr(windowHandle, GWL_EXSTYLE);
+        var newStyle = extendedStyle | WS_EX_TOOLWINDOW;
         SetWindowLongPtr(windowHandle, GWL_EXSTYLE, new IntPtr(newStyle));
     }
 }

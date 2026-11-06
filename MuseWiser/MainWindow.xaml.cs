@@ -38,6 +38,7 @@ namespace MuseWiser
 
             var windowHandle = new WindowInteropHelper(this).Handle;
             WindowClickThroughHelper.MakeClickThrough(windowHandle);
+            WindowClickThroughHelper.ExcludeFromAltTab(windowHandle);
         }
     }
 }
