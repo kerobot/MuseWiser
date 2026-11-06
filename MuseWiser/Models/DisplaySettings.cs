@@ -39,6 +39,12 @@ public sealed class DisplaySettings
     public string? WeatherApiKey { get; set; }
 
     /// <summary>
+    /// 天気情報を取得する都市名（英語名、OpenWeather の "q" パラメータに渡す値。例: "Tokyo,JP"）。
+    /// 未設定の場合は既定値（appsettings.json の設定）を使用する。
+    /// </summary>
+    public string? WeatherCity { get; set; } = "Tokyo,JP";
+
+    /// <summary>
     /// 天気情報の更新間隔（分）。未指定の場合は60分とする。
     /// </summary>
     public int WeatherUpdateIntervalMinutes { get; set; } = 60;

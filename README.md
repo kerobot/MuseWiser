@@ -43,7 +43,7 @@ MuseWiser/
 ## 設定ファイル
 
 - `appsettings.json`（アプリ同梱）：天気取得の既定条件（`Weather:City` / `Units` / `Language` / `UpdateIntervalMinutes`）、音声ソースの既定モードと接続設定（`AudioSource:Mode` / `PipeName` / `ReconnectIntervalMilliseconds`）など、ビルド時に固定する設定。
-- `%AppData%\MuseWiser\settings.json`（実行時生成）：配置モニター・アンカー位置・オフセット・表示倍率・天気APIキー・天気更新間隔・最前面/最背面設定・自動起動設定など、ユーザーが設定画面から変更する設定。
+- `%AppData%\MuseWiser\settings.json`（実行時生成）：配置モニター・アンカー位置・オフセット・表示倍率・天気地域・天気APIキー・天気更新間隔・最前面/最背面設定・自動起動設定など、ユーザーが設定画面から変更する設定。
 
 ## 今後の実装予定
 

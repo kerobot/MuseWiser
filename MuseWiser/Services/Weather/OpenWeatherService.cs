@@ -72,14 +72,17 @@ public sealed class OpenWeatherService : IWeatherService
     /// <returns>取得できた場合は <see cref="WeatherInfo"/>、失敗した場合は null。</returns>
     public async Task<WeatherInfo?> GetCurrentWeatherAsync(CancellationToken cancellationToken = default)
     {
-        var apiKey = _settingsService.Load().WeatherApiKey;
+        var displaySettings = _settingsService.Load();
+        var apiKey = displaySettings.WeatherApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             _logger.LogWarning("設定ファイルに OpenWeather APIキーが設定されていないため、天気情報を取得できません。");
             return null;
         }
 
-        var requestUri = $"{BaseUrl}?q={Uri.EscapeDataString(_settings.City)}" +
+        var city = string.IsNullOrWhiteSpace(displaySettings.WeatherCity) ? _settings.City : displaySettings.WeatherCity;
+
+        var requestUri = $"{BaseUrl}?q={Uri.EscapeDataString(city)}" +
                           $"&appid={apiKey}&units={_settings.Units}&lang={_settings.Language}";
 
         try

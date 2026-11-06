@@ -47,6 +47,9 @@
         <TextBlock Text="OpenWeather APIキー" Margin="0,0,0,4" />
         <TextBox Text="{Binding WeatherApiKey, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16" />
 
+        <TextBlock Text="都市（英語名、未指定はTokyo,JP）" Margin="0,0,0,4" />
+        <TextBox Text="{Binding WeatherCity, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16" />
+
         <TextBlock Text="天気情報の更新間隔（分、未指定は60分）" Margin="0,0,0,4" />
         <TextBox Text="{Binding WeatherUpdateIntervalMinutes, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" Margin="0,0,0,16" />
 

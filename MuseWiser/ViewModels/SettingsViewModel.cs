@@ -55,6 +55,12 @@ public sealed partial class SettingsViewModel : ViewModelBase
     private string? _weatherApiKey;
 
     /// <summary>
+    /// 天気情報を取得する都市名（英語名）。
+    /// </summary>
+    [ObservableProperty]
+    private string? _weatherCity;
+
+    /// <summary>
     /// 天気情報の更新間隔（分）。
     /// </summary>
     [ObservableProperty]
@@ -137,6 +143,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         OffsetX = settings.OffsetX;
         OffsetY = settings.OffsetY;
         WeatherApiKey = settings.WeatherApiKey;
+        WeatherCity = settings.WeatherCity;
         WeatherUpdateIntervalMinutes = settings.WeatherUpdateIntervalMinutes;
         IsTopmost = settings.WindowTopmostMode == WindowTopmostMode.Topmost;
         AutoStartEnabled = settings.AutoStartEnabled;
@@ -157,6 +164,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             OffsetX = OffsetX,
             OffsetY = OffsetY,
             WeatherApiKey = WeatherApiKey,
+            WeatherCity = string.IsNullOrWhiteSpace(WeatherCity) ? "Tokyo,JP" : WeatherCity,
             WeatherUpdateIntervalMinutes = WeatherUpdateIntervalMinutes > 0 ? WeatherUpdateIntervalMinutes : 60,
             WindowTopmostMode = IsTopmost ? WindowTopmostMode.Topmost : WindowTopmostMode.Bottommost,
             AutoStartEnabled = AutoStartEnabled,
