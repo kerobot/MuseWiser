@@ -20,6 +20,9 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
     /// </summary>
     private const int BaseFftSize = 2048;
 
+    /// <summary>
+    /// <see cref="BaseFftSize"/> の基準となるサンプルレート（Hz）。
+    /// </summary>
     private const int BaseSampleRate = 44100;
 
     /// <summary>
@@ -27,6 +30,9 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
     /// </summary>
     private const int MinFftLength = 1024;
 
+    /// <summary>
+    /// FFT サイズの上限（2 のべき乗）。
+    /// </summary>
     private const int MaxFftLength = 16384;
 
     /// <summary>
@@ -39,34 +45,110 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
     /// </summary>
     private const double SpectrumMinDecibels = -70.0;
 
+    /// <summary>
+    /// ログ出力用のロガー。
+    /// </summary>
     private readonly ILogger<WasapiLoopbackAudioService> _logger;
+
+    /// <summary>
+    /// キャプチャの開始・停止・デバイス切り替え処理を排他制御するための同期オブジェクト。
+    /// </summary>
     private readonly object _gate = new();
+
+    /// <summary>
+    /// 既定の再生デバイスの取得や、デバイス変更通知クライアントの生成に使用する列挙子。
+    /// </summary>
     private readonly MMDeviceEnumerator _enumerator = new();
 
+    /// <summary>
+    /// 現在使用中の FFT サイズ（サンプル数、2 のべき乗）。
+    /// </summary>
     private int _fftSize = BaseFftSize;
+
+    /// <summary>
+    /// 現在の <see cref="_fftSize"/> に対応する 2 のべき指数（FFT 計算に渡す値）。
+    /// </summary>
     private int _fftPow = (int)Math.Log2(BaseFftSize);
+
+    /// <summary>
+    /// FFT 計算のために L/R をミックスしたモノラルサンプルを蓄積するリングバッファ。
+    /// </summary>
     private float[] _fftCircularBuffer = new float[BaseFftSize];
+
+    /// <summary>
+    /// FFT 計算用の複素数ワークバッファ（窓関数適用後の入力および計算結果を保持）。
+    /// </summary>
     private Complex[] _fftWorkBuffer = new Complex[BaseFftSize];
+
+    /// <summary>
+    /// <see cref="_fftCircularBuffer"/> への次回書き込み位置（リングバッファの先頭インデックス）。
+    /// </summary>
     private int _fftWritePos;
+
+    /// <summary>
+    /// <see cref="_fftCircularBuffer"/> に書き込まれた有効サンプル数（最大で <see cref="_fftSize"/>）。
+    /// </summary>
     private int _fftFilledCount;
+
+    /// <summary>
+    /// 前回の FFT 計算からリングバッファに書き込まれたサンプル数。
+    /// 一定数（FFT サイズの 1/4）溜まるごとに再計算する間引き制御に使用する。
+    /// </summary>
     private int _fftSamplesSinceLastCompute;
+
+    /// <summary>
+    /// 現在キャプチャ中のデバイスのサンプルレート（Hz）。
+    /// </summary>
     private int _sampleRate = 44100;
+
+    /// <summary>
+    /// 直近に計算されたスペクトラムバンドごとの値（0.0～1.0 に正規化済み）。
+    /// </summary>
     private float[] _lastSpectrum = new float[SpectrumBandCount];
 
+    /// <summary>
+    /// 既定の再生デバイス変更を検知するための通知クライアント。<see cref="Start"/> 実行中のみ生成される。
+    /// </summary>
     private MMDeviceNotificationClient? _notificationClient;
+
+    /// <summary>
+    /// 現在稼働中の WASAPI ループバックレコーダー。キャプチャ未開始時は null。
+    /// </summary>
     private WasapiRecorder? _recorder;
+
+    /// <summary>
+    /// <see cref="Start"/> が呼び出され、キャプチャが有効化されているかどうか。
+    /// </summary>
     private bool _started;
+
+    /// <summary>
+    /// <see cref="Dispose"/> が実行済みかどうか。
+    /// </summary>
     private bool _disposed;
 
+    /// <summary>
+    /// <see cref="WasapiLoopbackAudioService"/> の新しいインスタンスを初期化する。
+    /// </summary>
+    /// <param name="logger">ログ出力に使用するロガー。</param>
     public WasapiLoopbackAudioService(ILogger<WasapiLoopbackAudioService> logger)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 音声データ（左右チャンネルのレベルおよびスペクトラム）が取得されるたびに発生するイベント。
+    /// </summary>
     public event EventHandler<AudioCaptureDataEventArgs>? DataAvailable;
 
+    /// <summary>
+    /// キャプチャ対象のデバイス情報が変化した（開始・デバイス切り替え・取得失敗など）際に発生するイベント。
+    /// </summary>
     public event EventHandler<AudioCaptureDeviceInfo>? DeviceChanged;
 
+    /// <summary>
+    /// 既定の再生デバイスのループバックキャプチャを開始し、既定デバイス変更の監視も開始する。
+    /// 既に開始済みの場合は何もしない。
+    /// </summary>
     public void Start()
     {
         lock (_gate)
@@ -85,6 +167,10 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
         }
     }
 
+    /// <summary>
+    /// ループバックキャプチャおよび既定デバイス変更の監視を停止する。
+    /// 未開始の場合は何もしない。
+    /// </summary>
     public void Stop()
     {
         lock (_gate)
@@ -107,6 +193,12 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
         }
     }
 
+    /// <summary>
+    /// 既定のオーディオデバイスが変更された際のハンドラー。
+    /// 再生（Render）デバイスの変更の場合のみ、キャプチャ対象を切り替える。
+    /// </summary>
+    /// <param name="sender">イベント送信元。</param>
+    /// <param name="e">変更されたデバイスの種別（Render/Capture）を含むイベント引数。</param>
     private void OnDefaultDeviceChanged(object? sender, DefaultDeviceChangedEventArgs e)
     {
         // 再生用（Render）の既定デバイス変更にのみ追従する。
@@ -128,6 +220,10 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
         }
     }
 
+    /// <summary>
+    /// 既定の再生デバイスを取得し、その WASAPI ループバックキャプチャを開始する。
+    /// デバイスが取得できない場合や開始に失敗した場合は、警告ログを出力し <see cref="DeviceChanged"/> で失敗を通知する。
+    /// </summary>
     private void StartCaptureOnDefaultDevice()
     {
         try
@@ -165,6 +261,10 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
         }
     }
 
+    /// <summary>
+    /// 現在稼働中のレコーダーを停止・破棄する。<see cref="_gate"/> のロック内から呼び出すことを前提とする。
+    /// レコーダーが存在しない場合は何もしない。
+    /// </summary>
     private void StopCaptureLocked()
     {
         if (_recorder is null)
@@ -186,6 +286,14 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
         _recorder = null;
     }
 
+    /// <summary>
+    /// WASAPI から音声データが到着した際に呼び出され、左右チャンネルのピークレベルを算出するとともに、
+    /// モノラルミックスサンプルを FFT 用バッファへ供給し、<see cref="DataAvailable"/> イベントを発生させる。
+    /// </summary>
+    /// <param name="buffer">到着した生の音声バイト列。</param>
+    /// <param name="flags">オーディオクライアントのバッファフラグ（無音判定などに使用可能）。</param>
+    /// <param name="devicePosition">デバイス上のサンプル位置。</param>
+    /// <param name="qpcPosition">QueryPerformanceCounter 基準のタイムスタンプ。</param>
     private void OnDataAvailable(ReadOnlySpan<byte> buffer, AudioClientBufferFlags flags, long devicePosition, long qpcPosition)
     {
         var recorder = _recorder;
@@ -345,6 +453,12 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
             _lastSpectrum));
     }
 
+    /// <summary>
+    /// 24bit PCM（リトルエンディアン、1 サンプル 3 バイト）の値を読み取り、符号拡張した 32bit 整数として返す。
+    /// </summary>
+    /// <param name="buffer">読み取り対象のバイト列。</param>
+    /// <param name="offset">サンプルの先頭バイトを指すオフセット。</param>
+    /// <returns>符号拡張済みの 32bit 整数値。</returns>
     private static int ReadInt24(ReadOnlySpan<byte> buffer, int offset)
     {
         var value = buffer[offset] | (buffer[offset + 1] << 8) | (buffer[offset + 2] << 16);
@@ -357,13 +471,10 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
     }
 
     /// <summary>
-    /// L/R をミックスしたモノラルサンプルを FFT 用のリングバッファへ書き込む。
-    /// 十分なサンプル数が溜まったら FFT を計算し、<see cref="_lastSpectrum"/> を更新する。
-    /// </summary>
-    /// <summary>
     /// サンプルレートに応じて FFT サイズを決定する。基準（44.1kHz 付近）では <see cref="BaseFftSize"/> を用い、
     /// サンプルレートが高いほど低域の周波数分解能を維持するために FFT サイズを比例して拡大する。
     /// </summary>
+    /// <param name="sampleRate">キャプチャ中のデバイスのサンプルレート（Hz）。</param>
     private void UpdateFftSizeForSampleRate(int sampleRate)
     {
         var ratio = (double)sampleRate / BaseSampleRate;
@@ -389,6 +500,11 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
         _fftSamplesSinceLastCompute = 0;
     }
 
+    /// <summary>
+    /// L/R をミックスしたモノラルサンプルを FFT 用のリングバッファへ書き込む。
+    /// 十分なサンプル数が溜まったら FFT を計算し、<see cref="_lastSpectrum"/> を更新する。
+    /// </summary>
+    /// <param name="sample">L/R をミックスしたモノラルサンプル値。</param>
     private void PushFftSample(float sample)
     {
         var fftSize = _fftSize;
@@ -409,6 +525,11 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
         }
     }
 
+    /// <summary>
+    /// リングバッファに蓄積された最新のサンプルに Hamming 窓を適用して FFT を実行し、
+    /// <see cref="SpectrumBandDefinitions"/> のバンド境界に基づいて <see cref="SpectrumBandCount"/> 個の
+    /// バンドごとの正規化済みレベルを算出して <see cref="_lastSpectrum"/> を更新する。
+    /// </summary>
     private void ComputeSpectrum()
     {
         var fftSize = _fftSize;
@@ -489,6 +610,9 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
         return Math.Clamp((decibels - SpectrumMinDecibels) / -SpectrumMinDecibels, 0.0, 1.0);
     }
 
+    /// <summary>
+    /// キャプチャを停止し、内部で保持しているアンマネージリソース（デバイス列挙子）を解放する。
+    /// </summary>
     public void Dispose()
     {
         if (_disposed)

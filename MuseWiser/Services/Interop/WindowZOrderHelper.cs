@@ -14,12 +14,37 @@ namespace MuseWiser.Services.Interop;
 /// </summary>
 public static class WindowZOrderHelper
 {
+    /// <summary>
+    /// <c>SetWindowPos</c> の <c>hWndInsertAfter</c> に指定する、最背面挿入位置を表す特殊ハンドル値。
+    /// </summary>
     private static readonly IntPtr HwndBottom = new(1);
 
+    /// <summary>
+    /// ウィンドウの位置を変更しないことを示すフラグ。
+    /// </summary>
     private const uint SwpNoMove = 0x0002;
+
+    /// <summary>
+    /// ウィンドウのサイズを変更しないことを示すフラグ。
+    /// </summary>
     private const uint SwpNoSize = 0x0001;
+
+    /// <summary>
+    /// ウィンドウをアクティブ化しないことを示すフラグ。
+    /// </summary>
     private const uint SwpNoActivate = 0x0010;
 
+    /// <summary>
+    /// 指定したウィンドウの Z オーダー・位置・サイズを変更する Win32 API。
+    /// </summary>
+    /// <param name="hWnd">対象ウィンドウのハンドル。</param>
+    /// <param name="hWndInsertAfter">挿入位置の基準となるウィンドウハンドル（特殊値含む）。</param>
+    /// <param name="x">新しい X 座標（<see cref="SwpNoMove"/> 指定時は無視）。</param>
+    /// <param name="y">新しい Y 座標（<see cref="SwpNoMove"/> 指定時は無視）。</param>
+    /// <param name="cx">新しい幅（<see cref="SwpNoSize"/> 指定時は無視）。</param>
+    /// <param name="cy">新しい高さ（<see cref="SwpNoSize"/> 指定時は無視）。</param>
+    /// <param name="uFlags">動作を制御するフラグの組み合わせ。</param>
+    /// <returns>成功した場合は true。</returns>
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 

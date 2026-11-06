@@ -56,6 +56,14 @@ public static class WindowPositionHelper
         window.Top = anchorY + settings.OffsetY;
     }
 
+    /// <summary>
+    /// 指定されたアンカー位置とウィンドウサイズに基づいて、ワークエリア内の原点座標（論理ピクセル）を算出する。
+    /// </summary>
+    /// <param name="anchor">ウィンドウを配置する基準位置（9分割のアンカー）。</param>
+    /// <param name="workingArea">配置対象モニタのワークエリア。</param>
+    /// <param name="width">ウィンドウの幅。</param>
+    /// <param name="height">ウィンドウの高さ。</param>
+    /// <returns>ウィンドウの左上角の X・Y 座標。</returns>
     private static (double X, double Y) GetAnchorOrigin(ScreenAnchor anchor, Rect workingArea, double width, double height)
     {
         double x = anchor switch
@@ -77,6 +85,12 @@ public static class WindowPositionHelper
         return (x, y);
     }
 
+    /// <summary>
+    /// 指定されたウィンドウが表示されているディスプレイの DPI スケールを取得する。
+    /// コンポジションターゲットが未確定の場合は等働値（1.0）を返す。
+    /// </summary>
+    /// <param name="window">対象ウィンドウ。</param>
+    /// <returns>X・Y 方向の DPI スケール係数。</returns>
     private static System.Windows.Point GetDpiScale(Window window)
     {
         var source = PresentationSource.FromVisual(window);

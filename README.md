@@ -10,6 +10,8 @@
   - APIキー未設定時は天気情報欄を非表示にし、ウィンドウの高さも自動的に詰めます。
 - **音量メーター表示**：既定の再生デバイスの音声を WASAPI ループバックキャプチャで取得し、L/R レベルメーターと16バンドのスペクトラムメーターをリアルタイム表示します（`VolumeMeterViewModel` / `WasapiLoopbackAudioService`）。
 - **表示位置・サイズ設定**：配置先モニター、画面内アンカー位置、オフセット、表示倍率（%指定）を設定画面（`SettingsWindow`）から変更でき、`%AppData%\MuseWiser\settings.json` に永続化されます。
+- **最前面／最背面表示の切り替え**：ウィンドウを常に最前面に表示するか、常に最背面（他ウィンドウの操作を妨げない）に表示するかを設定画面から切り替えられます（`WindowZOrderHelper` / `WindowTopmostMode`）。
+- **Windows起動時の自動起動**：OSログイン時にアプリを自動起動するかどうかを設定画面から有効・無効化できます（`AutoStartHelper`、レジストリの `HKCU\...\Run` キーを使用）。
 - **タスクトレイ常駐**：通知領域アイコンから設定画面の表示・アプリ終了を行えます。
 
 ## プロジェクト構成
@@ -40,8 +42,8 @@ MuseWiser/
 
 ## 設定ファイル
 
-- `appsettings.json`（アプリ同梱）：天気取得の既定条件（都市・単位・言語）、音声ソースの既定モードなど、ビルド時に固定する設定。
-- `%AppData%\MuseWiser\settings.json`（実行時生成）：配置モニター・アンカー位置・オフセット・表示倍率・天気APIキー・天気更新間隔など、ユーザーが設定画面から変更する設定。
+- `appsettings.json`（アプリ同梱）：天気取得の既定条件（`Weather:City` / `Units` / `Language` / `UpdateIntervalMinutes`）、音声ソースの既定モードと接続設定（`AudioSource:Mode` / `PipeName` / `ReconnectIntervalMilliseconds`）など、ビルド時に固定する設定。
+- `%AppData%\MuseWiser\settings.json`（実行時生成）：配置モニター・アンカー位置・オフセット・表示倍率・天気APIキー・天気更新間隔・最前面/最背面設定・自動起動設定など、ユーザーが設定画面から変更する設定。
 
 ## 今後の実装予定
 

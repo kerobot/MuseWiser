@@ -13,6 +13,9 @@ namespace MuseWiser.ViewModels;
 /// </summary>
 public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
 {
+    /// <summary>
+    /// 音量メーターの 1 ティックあたりの減衰量（0.0〜1.0 スケール）。
+    /// </summary>
     private const double DecayPerTick = 0.08;
 
     /// <summary>
@@ -53,6 +56,10 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
     /// </summary>
     public static IReadOnlyList<string> SpectrumBandLabels { get; } = CreateSpectrumBandLabels();
 
+    /// <summary>
+    /// <see cref="SpectrumBandStartFrequencies"/> から各バンドの表示用周波数ラベルを生成する。
+    /// </summary>
+    /// <returns>バンド数分の周波数ラベル文字列。</returns>
     private static IReadOnlyList<string> CreateSpectrumBandLabels()
     {
         var labels = new string[SpectrumBandCount];
@@ -65,6 +72,11 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
         return labels;
     }
 
+    /// <summary>
+    /// 周波数（Hz）を表示用の短い文字列（1000Hz 以上は k 表記）に整形する。
+    /// </summary>
+    /// <param name="frequency">周波数（Hz）。</param>
+    /// <returns>整形済みの周波数ラベル文字列。</returns>
     private static string FormatFrequency(double frequency)
     {
         if (frequency >= 1000)
@@ -78,7 +90,14 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
         return $"{frequency:0}";
     }
 
+    /// <summary>
+    /// 表示するスペクトラムバンド数。
+    /// </summary>
     private const int SpectrumBandCount = 16;
+
+    /// <summary>
+    /// スペクトラムバンド 1 ティックあたりの減衰量（0.0〜1.0 スケール）。
+    /// </summary>
     private const double SpectrumDecayPerTick = 0.12;
 
     /// <summary>
@@ -92,8 +111,19 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
     /// </summary>
     private const double PeakDecayPerTick = DecayPerTick;
 
+    /// <summary>
+    /// 各スペクトラムバンドの目標レベル（0.0〜1.0）。<see cref="OnDataAvailable"/> で更新され、減衰計算の目標値として使用する。
+    /// </summary>
     private readonly double[] _spectrumTargets = new double[SpectrumBandCount];
+
+    /// <summary>
+    /// 各スペクトラムバンドのピーク保持値（0〜SegmentCount の量子化スケール）。
+    /// </summary>
     private readonly double[] _spectrumPeakValues = new double[SpectrumBandCount];
+
+    /// <summary>
+    /// 各スペクトラムバンドのピーク保持残りティック数。
+    /// </summary>
     private readonly int[] _spectrumPeakHoldTicks = new int[SpectrumBandCount];
 
     /// <summary>
@@ -102,25 +132,61 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
     /// </summary>
     public System.Collections.ObjectModel.ObservableCollection<SpectrumBandViewModel> SpectrumBands { get; } = CreateSpectrumBands();
 
+    /// <summary>
+    /// <see cref="SpectrumBandLabels"/> から <see cref="SpectrumBandViewModel"/> のコレクションを生成する。
+    /// </summary>
+    /// <returns>ラベル付けされたスペクトラムバンド ViewModel のコレクション。</returns>
     private static System.Collections.ObjectModel.ObservableCollection<SpectrumBandViewModel> CreateSpectrumBands()
         => new(SpectrumBandLabels.Select(label => new SpectrumBandViewModel(label)));
 
+    /// <summary>
+    /// デバイス変更通知やデータ受信を行う音声キャプチャサービス。
+    /// </summary>
     private readonly IAudioCaptureService _captureService;
+
+    /// <summary>
+    /// ログ出力用のロガー。
+    /// </summary>
     private readonly ILogger<VolumeMeterViewModel> _logger;
+
+    /// <summary>
+    /// レベルを減衰させながら定期的に再描画を行うためのタイマー（33ms間隔）。
+    /// </summary>
     private readonly DispatcherTimer _decayTimer;
 
+    /// <summary>
+    /// 左チャンネルの目標レベル（0.0〜1.0）。
+    /// </summary>
     private double _leftTarget;
+
+    /// <summary>
+    /// 右チャンネルの目標レベル（0.0〜1.0）。
+    /// </summary>
     private double _rightTarget;
 
+    /// <summary>
+    /// 左チャンネルの現在表示レベル（0.0〜1.0）。
+    /// </summary>
     [ObservableProperty]
     private double _leftLevel;
 
+    /// <summary>
+    /// 右チャンネルの現在表示レベル（0.0〜1.0）。
+    /// </summary>
     [ObservableProperty]
     private double _rightLevel;
 
+    /// <summary>
+    /// 音量メーターが稼働中かどうか。
+    /// </summary>
     [ObservableProperty]
     private bool _isActive;
 
+    /// <summary>
+    /// <see cref="VolumeMeterViewModel"/> の新しいインスタンスを初期化し、減衰タイマーを構成する。
+    /// </summary>
+    /// <param name="captureService">音声キャプチャサービス。</param>
+    /// <param name="logger">ログ出力に使用するロガー。</param>
     public VolumeMeterViewModel(IAudioCaptureService captureService, ILogger<VolumeMeterViewModel> logger)
     {
         _captureService = captureService;
@@ -133,6 +199,10 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
         _decayTimer.Tick += OnDecayTick;
     }
 
+    /// <summary>
+    /// 音声キャプチャを開始し、データ受信と減衰タイマーを有効化する。
+    /// 開始に失敗した場合は警告ログを出力し、<see cref="IsActive"/> を false のままとする。
+    /// </summary>
     public void Start()
     {
         try
@@ -149,6 +219,9 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// 音声キャプチャを停止し、表示値・内部状態をすべて初期値にリセットする。
+    /// </summary>
     public void Stop()
     {
         _decayTimer.Stop();
@@ -171,6 +244,12 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// 音声データが取得されたときに呼び出され、左右チャンネルとスペクトラムの目標値を更新する。
+    /// 実際の表示値の更新は <see cref="OnDecayTick"/> で行う。
+    /// </summary>
+    /// <param name="sender">イベント送信元。</param>
+    /// <param name="e">取得されたレベル・スペクトラムデータ。</param>
     private void OnDataAvailable(object? sender, AudioCaptureDataEventArgs e)
     {
         _leftTarget = ToMeterScale(e.LeftLevel);
@@ -205,6 +284,12 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
         return Math.Clamp((decibels - MinDecibels) / -MinDecibels, 0.0, 1.0);
     }
 
+    /// <summary>
+    /// 減衰タイマーのティックごとに呼び出され、左右レベルと各スペクトラムバンドの表示値を目標値に近づけ、
+    /// ピークホールド表示も更新する。
+    /// </summary>
+    /// <param name="sender">イベント送信元。</param>
+    /// <param name="e">イベント引数（未使用）。</param>
     private void OnDecayTick(object? sender, EventArgs e)
     {
         LeftLevel = StepTowards(LeftLevel, _leftTarget);
@@ -255,6 +340,13 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
             : -1;
     }
 
+    /// <summary>
+    /// 現在値を目標値に向けて指定の減衰量だけ近づける。目標値が現在値以上の場合は即座に目標値を返す。
+    /// </summary>
+    /// <param name="current">現在値。</param>
+    /// <param name="target">目標値。</param>
+    /// <param name="decayPerTick">1 ティックあたりの減衰量。未指定時は <see cref="DecayPerTick"/>。</param>
+    /// <returns>減衰後の値。</returns>
     private static double StepTowards(double current, double target, double decayPerTick = DecayPerTick)
     {
         if (target >= current)
@@ -266,6 +358,9 @@ public sealed partial class VolumeMeterViewModel : ViewModelBase, IDisposable
         return next < target ? target : next;
     }
 
+    /// <summary>
+    /// 音声キャプチャを停止し、タイマーイベントの購読を解除する。
+    /// </summary>
     public void Dispose()
     {
         Stop();
@@ -285,6 +380,9 @@ public sealed partial class SpectrumBandViewModel : ViewModelBase
     /// </summary>
     public const int SegmentCount = 12;
 
+    /// <summary>
+    /// バンドの周波数ラベル文字列。
+    /// </summary>
     public string Label { get; }
 
     /// <summary>
@@ -305,6 +403,10 @@ public sealed partial class SpectrumBandViewModel : ViewModelBase
     [ObservableProperty]
     private int _peakSegmentIndex = -1;
 
+    /// <summary>
+    /// <see cref="SpectrumBandViewModel"/> の新しいインスタンスを初期化する。
+    /// </summary>
+    /// <param name="label">バンドの周波数ラベル。</param>
     public SpectrumBandViewModel(string label)
     {
         Label = label;

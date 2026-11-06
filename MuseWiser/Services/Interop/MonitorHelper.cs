@@ -60,6 +60,10 @@ public static class MonitorHelper
         return monitors.FirstOrDefault(m => m.IsPrimary) ?? monitors[0];
     }
 
+    /// <summary>
+    /// モニタが1台も取得できない場合に使用する、既定のフォールバック用モニタ情報を生成する。
+    /// </summary>
+    /// <returns>1920x1080 の仮想領域を持つフォールバック用の <see cref="MonitorInfo"/>。</returns>
     private static MonitorInfo CreateFallbackMonitor()
     {
         var bounds = new System.Drawing.Rectangle(0, 0, 1920, 1080);

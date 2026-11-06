@@ -8,7 +8,14 @@ namespace MuseWiser.Services.Interop;
 /// </summary>
 public static class AutoStartHelper
 {
+    /// <summary>
+    /// 自動起動設定を書き込むレジストリキーのパス。
+    /// </summary>
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+
+    /// <summary>
+    /// レジストリ値の名前（アプリケーション識別用）。
+    /// </summary>
     private const string ValueName = "MuseWiser";
 
     /// <summary>

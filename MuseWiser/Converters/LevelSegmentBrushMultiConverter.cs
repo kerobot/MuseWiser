@@ -10,9 +10,24 @@ namespace MuseWiser.Converters;
 /// </summary>
 internal static class LevelColorPalette
 {
+    /// <summary>
+    /// 消灯時の色（暗いグレー）。
+    /// </summary>
     public static readonly SolidColorBrush OffBrush = CreateFrozenBrush(0x33, 0x33, 0x33);
+
+    /// <summary>
+    /// 下位レベル用の発光色（緑）。
+    /// </summary>
     public static readonly SolidColorBrush GreenBrush = CreateFrozenBrush(0x00, 0xE6, 0x76);
+
+    /// <summary>
+    /// 中位レベル用の発光色（黄）。
+    /// </summary>
     public static readonly SolidColorBrush YellowBrush = CreateFrozenBrush(0xFF, 0xD1, 0x00);
+
+    /// <summary>
+    /// 上位レベル用の発光色（赤）。
+    /// </summary>
     public static readonly SolidColorBrush RedBrush = CreateFrozenBrush(0xFF, 0x3B, 0x30);
 
     /// <summary>
@@ -26,6 +41,13 @@ internal static class LevelColorPalette
         _ => RedBrush,
     };
 
+    /// <summary>
+    /// 指定した RGB 値から <see cref="SolidColorBrush"/> を生成し、パフォーマンスのため Freeze する。
+    /// </summary>
+    /// <param name="r">赤成分。</param>
+    /// <param name="g">緑成分。</param>
+    /// <param name="b">青成分。</param>
+    /// <returns>Freeze 済みの <see cref="SolidColorBrush"/>。</returns>
     public static SolidColorBrush CreateFrozenBrush(byte r, byte g, byte b)
     {
         var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
@@ -41,8 +63,19 @@ internal static class LevelColorPalette
 /// </summary>
 public sealed class LevelSegmentBrushMultiConverter : IMultiValueConverter
 {
+    /// <summary>
+    /// LED セグメントの総数。
+    /// </summary>
     private const int SegmentCount = LevelSegmentActiveMultiConverter.SegmentCount;
 
+    /// <summary>
+    /// 音量レベルとセグメントインデックスから、そのセグメントの発光色を返す。
+    /// </summary>
+    /// <param name="values">values[0] に音量レベル（double）、values[1] にセグメントインデックス（int）を指定する。</param>
+    /// <param name="targetType">変換先の型（未使用）。</param>
+    /// <param name="parameter">コンバーターパラメーター（未使用）。</param>
+    /// <param name="culture">カルチャ情報（未使用）。</param>
+    /// <returns>セグメントの発光色。消灯時は <see cref="LevelColorPalette.OffBrush"/>。</returns>
     public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
     {
         if (values is not [double level, int index])
@@ -61,6 +94,14 @@ public sealed class LevelSegmentBrushMultiConverter : IMultiValueConverter
         return LevelColorPalette.ResolveColor(position);
     }
 
+    /// <summary>
+    /// この変換は逆変換をサポートしない。
+    /// </summary>
+    /// <param name="value">逆変換対象の値（未使用）。</param>
+    /// <param name="targetTypes">逆変換先の型一覧（未使用）。</param>
+    /// <param name="parameter">コンバーターパラメーター（未使用）。</param>
+    /// <param name="culture">カルチャ情報（未使用）。</param>
+    /// <returns>常に例外をスローするため戻り値なし。</returns>
     public object[] ConvertBack(object value, Type[] targetTypes, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }

@@ -25,6 +25,11 @@ public static class SpectrumBandDefinitions
     /// </summary>
     public static IReadOnlyList<SpectrumBandRange> Bands { get; } = BuildBands();
 
+    /// <summary>
+    /// <see cref="CenterFrequencies"/> の各中心周波数から、隣接バンドとの幾何平均を境界として
+    /// 16 バンド分の周波数範囲（<see cref="SpectrumBandRange"/>）を構築する。
+    /// </summary>
+    /// <returns>各バンドの下限・上限周波数（Hz）の一覧。</returns>
     private static IReadOnlyList<SpectrumBandRange> BuildBands()
     {
         var count = CenterFrequencies.Length;

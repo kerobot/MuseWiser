@@ -14,15 +14,33 @@ namespace MuseWiser.Services.Audio.PlayMuse;
 /// </summary>
 public sealed class PlayMuseNamedPipeAudioCaptureService : IAudioCaptureService
 {
+    /// <summary>
+    /// PlayMuse 名前付きパイプ接続の設定（パイプ名・再接続間隔など）。
+    /// </summary>
     private readonly PlayMusePipeOptions _options;
+
+    /// <summary>
+    /// ログ出力用のロガー。
+    /// </summary>
     private readonly ILogger<PlayMuseNamedPipeAudioCaptureService> _logger;
 
+    /// <summary>
+    /// 音声データが更新されたときに発生するイベント（現時点では未実装のため発生しない）。
+    /// </summary>
     public event EventHandler<AudioCaptureDataEventArgs>? DataAvailable;
 
     // TODO: PlayMuse 連携の実装時に、接続先デバイス名・サンプルレート・チャンネル数が判明した時点で
     // DeviceChanged イベントを発行する。
+    /// <summary>
+    /// 使用中のオーディオデバイス情報が変化したときに発生するイベント（現時点では未実装のため発生しない）。
+    /// </summary>
     public event EventHandler<AudioCaptureDeviceInfo>? DeviceChanged;
 
+    /// <summary>
+    /// <see cref="PlayMuseNamedPipeAudioCaptureService"/> の新しいインスタンスを初期化する。
+    /// </summary>
+    /// <param name="options">PlayMuse パイプ接続の設定。</param>
+    /// <param name="logger">ログ出力に使用するロガー。</param>
     public PlayMuseNamedPipeAudioCaptureService(
         IOptions<PlayMusePipeOptions> options,
         ILogger<PlayMuseNamedPipeAudioCaptureService> logger)
@@ -31,6 +49,9 @@ public sealed class PlayMuseNamedPipeAudioCaptureService : IAudioCaptureService
         _logger = logger;
     }
 
+    /// <summary>
+    /// キャプチャを開始する。現時点では PlayMuse 連携は未実装のため、警告ログを出力するのみで何も行わない。
+    /// </summary>
     public void Start()
     {
         // TODO: PlayMuse 側のプロトコルが確定次第、以下を実装する。
@@ -45,11 +66,17 @@ public sealed class PlayMuseNamedPipeAudioCaptureService : IAudioCaptureService
             _options.PipeName);
     }
 
+    /// <summary>
+    /// キャプチャを停止する。現時点では接続を保持していないため何もしない。
+    /// </summary>
     public void Stop()
     {
         // 現時点では接続を保持していないため何もしない。
     }
 
+    /// <summary>
+    /// リソースを解放する。現時点では解放すべきリソースを保持していないため何もしない。
+    /// </summary>
     public void Dispose()
     {
         // 現時点では解放すべきリソースを保持していない。

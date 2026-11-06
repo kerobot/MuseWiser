@@ -11,14 +11,28 @@ namespace MuseWiser.Services.Settings;
 /// </summary>
 public sealed class SettingsService : ISettingsService
 {
+    /// <summary>
+    /// JSON のシリアライズ/デシリアライズに使用する共通オプション（インデント付き出力）。
+    /// </summary>
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         WriteIndented = true,
     };
 
+    /// <summary>
+    /// 設定ファイル（settings.json）のフルパス。
+    /// </summary>
     private readonly string _filePath;
+
+    /// <summary>
+    /// ログ出力用のロガー。
+    /// </summary>
     private readonly ILogger<SettingsService> _logger;
 
+    /// <summary>
+    /// <see cref="SettingsService"/> の新しいインスタンスを初期化し、%AppData%\MuseWiser\settings.json を保存先として設定する。
+    /// </summary>
+    /// <param name="logger">ログ出力に使用するロガー。</param>
     public SettingsService(ILogger<SettingsService> logger)
     {
         _logger = logger;
@@ -30,6 +44,11 @@ public sealed class SettingsService : ISettingsService
         _filePath = Path.Combine(folder, "settings.json");
     }
 
+    /// <summary>
+    /// 設定ファイルから表示設定を読み込む。ファイルが存在しない場合や読み込みに失敗した場合は、既定値の
+    /// <see cref="DisplaySettings"/> を返す。
+    /// </summary>
+    /// <returns>読み込んだ、または既定の表示設定。</returns>
     public DisplaySettings Load()
     {
         try
@@ -53,6 +72,11 @@ public sealed class SettingsService : ISettingsService
         return new DisplaySettings();
     }
 
+    /// <summary>
+    /// 表示設定を JSON として設定ファイルに保存する。保存先フォルダが存在しない場合は作成する。
+    /// 保存に失敗した場合はエラーログを出力し、例外は投げない。
+    /// </summary>
+    /// <param name="settings">保存する表示設定。</param>
     public void Save(DisplaySettings settings)
     {
         try

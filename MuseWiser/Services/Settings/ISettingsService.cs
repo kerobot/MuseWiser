@@ -10,10 +10,12 @@ public interface ISettingsService
     /// <summary>
     /// 現在の表示設定を取得する。
     /// </summary>
+    /// <returns>現在の <see cref="DisplaySettings"/>。</returns>
     DisplaySettings Load();
 
     /// <summary>
     /// 表示設定を保存する。
     /// </summary>
+    /// <param name="settings">保存する表示設定。</param>
     void Save(DisplaySettings settings);
 }

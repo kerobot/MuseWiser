@@ -18,14 +18,29 @@ using MuseWiser.ViewModels;
 namespace MuseWiser
 {
     /// <summary>
-    /// Interaction logic for App.xaml
+    /// アプリケーションのエントリポイント。DI ホストの構築・起動、タスクトレイアイコン、メインウィンドウ表示を行う。
     /// </summary>
     public partial class App : Application
     {
+        /// <summary>
+        /// DI コンテナとホストライフサイクルを管理するホスト。
+        /// </summary>
         private IHost? _host;
+
+        /// <summary>
+        /// タスクトレイアイコン。
+        /// </summary>
         private TaskbarIcon? _trayIcon;
+
+        /// <summary>
+        /// アプリケーション全体用のロガー。
+        /// </summary>
         private ILogger<App>? _logger;
 
+        /// <summary>
+        /// アプリケーション起動時に DI ホストを構築し、タスクトレイアイコンとメインウィンドウを表示する。
+        /// </summary>
+        /// <param name="e">起動イベント引数。</param>
         protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
@@ -79,6 +94,11 @@ namespace MuseWiser
             }
         }
 
+        /// <summary>
+        /// DI コンテナに各サービス・ViewModel・ウィンドウを登録する。
+        /// </summary>
+        /// <param name="context">ホスト構築コンテキスト（設定ファイル含む）。</param>
+        /// <param name="services">登録先のサービスコレクション。</param>
         private static void ConfigureServices(HostBuilderContext context, IServiceCollection services)
         {
             services.AddSingleton<MainWindow>();
@@ -109,6 +129,11 @@ namespace MuseWiser
             services.AddTransient<SettingsWindow>();
         }
 
+        /// <summary>
+        /// タスクトレイメニューから設定画面を表示し、保存時にメインウィンドウへ設定を再適用する。
+        /// </summary>
+        /// <param name="sender">イベント送信元。</param>
+        /// <param name="e">ルーティングイベント引数。</param>
         private void SettingsMenuItem_Click(object sender, RoutedEventArgs e)
         {
             if (_host is null)
@@ -139,11 +164,20 @@ namespace MuseWiser
             }
         }
 
+        /// <summary>
+        /// タスクトレイメニューからアプリケーションを終了する。
+        /// </summary>
+        /// <param name="sender">イベント送信元。</param>
+        /// <param name="e">ルーティングイベント引数。</param>
         private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
         {
             Shutdown();
         }
 
+        /// <summary>
+        /// アプリケーション終了時にタスクトレイアイコン、ViewModel、DI ホストを解放し、未処理例外ハンドラの購読を解除する。
+        /// </summary>
+        /// <param name="e">終了イベント引数。</param>
         protected override async void OnExit(ExitEventArgs e)
         {
             try
@@ -176,12 +210,22 @@ namespace MuseWiser
             base.OnExit(e);
         }
 
+        /// <summary>
+        /// UI スレッドで発生した未処理例外をログ出力し、アプリケーションのクラッシュを防ぐ。
+        /// </summary>
+        /// <param name="sender">イベント送信元。</param>
+        /// <param name="e">未処理例外イベント引数。</param>
         private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
             _logger?.LogCritical(e.Exception, "UI スレッドで未処理の例外が発生しました。");
             e.Handled = true;
         }
 
+        /// <summary>
+        /// アプリケーションドメイン全体で発生した未処理例外をログ出力する。
+        /// </summary>
+        /// <param name="sender">イベント送信元。</param>
+        /// <param name="e">未処理例外イベント引数。</param>
         private void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             if (e.ExceptionObject is Exception ex)
@@ -190,6 +234,11 @@ namespace MuseWiser
             }
         }
 
+        /// <summary>
+        /// 監視されていないタスク例外をログ出力し、例外を観測済みとしてマークする。
+        /// </summary>
+        /// <param name="sender">イベント送信元。</param>
+        /// <param name="e">未観測タスク例外イベント引数。</param>
         private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
             _logger?.LogError(e.Exception, "監視されていないタスク例外が発生しました。");
