@@ -50,7 +50,14 @@ namespace MuseWiser
                 _logger = _host.Services.GetRequiredService<ILogger<App>>();
 
                 _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
-                _trayIcon.Icon = System.Drawing.SystemIcons.Application;
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                using (var iconStream = assembly.GetManifestResourceStream("MuseWiser.Resources.Icons.MuseWiser.ico"))
+                {
+                    if (iconStream is not null)
+                    {
+                        _trayIcon.Icon = new System.Drawing.Icon(iconStream);
+                    }
+                }
 
                 var mainWindow = _host.Services.GetRequiredService<MainWindow>();
 
