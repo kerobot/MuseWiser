@@ -19,6 +19,10 @@ public sealed class PlayMuseNamedPipeAudioCaptureService : IAudioCaptureService
 
     public event EventHandler<AudioCaptureDataEventArgs>? DataAvailable;
 
+    // TODO: PlayMuse 連携の実装時に、接続先デバイス名・サンプルレート・チャンネル数が判明した時点で
+    // DeviceChanged イベントを発行する。
+    public event EventHandler<AudioCaptureDeviceInfo>? DeviceChanged;
+
     public PlayMuseNamedPipeAudioCaptureService(
         IOptions<PlayMusePipeOptions> options,
         ILogger<PlayMuseNamedPipeAudioCaptureService> logger)

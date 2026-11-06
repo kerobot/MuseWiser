@@ -11,17 +11,21 @@ public sealed class MainViewModel : ViewModelBase, IAsyncDisposable
 
     public VolumeMeterViewModel VolumeMeter { get; }
 
-    public MainViewModel(ClockViewModel clock, WeatherViewModel weather, VolumeMeterViewModel volumeMeter)
+    public AudioDeviceInfoViewModel AudioDevice { get; }
+
+    public MainViewModel(ClockViewModel clock, WeatherViewModel weather, VolumeMeterViewModel volumeMeter, AudioDeviceInfoViewModel audioDevice)
     {
         Clock = clock;
         Weather = weather;
         VolumeMeter = volumeMeter;
+        AudioDevice = audioDevice;
         Weather.Start();
         VolumeMeter.Start();
     }
 
     public async ValueTask DisposeAsync()
     {
+        AudioDevice.Dispose();
         VolumeMeter.Dispose();
         Clock.Dispose();
         await Weather.DisposeAsync();

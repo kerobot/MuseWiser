@@ -13,6 +13,11 @@ public interface IAudioCaptureService : IDisposable
     event EventHandler<AudioCaptureDataEventArgs>? DataAvailable;
 
     /// <summary>
+    /// 使用中のオーディオデバイス情報（名前・サンプルレート・チャンネル数）が変化したときに発生するイベント。
+    /// </summary>
+    event EventHandler<AudioCaptureDeviceInfo>? DeviceChanged;
+
+    /// <summary>
     /// キャプチャを開始する。
     /// </summary>
     void Start();
@@ -30,3 +35,11 @@ public interface IAudioCaptureService : IDisposable
 /// <param name="RightLevel">右チャンネルのレベル（0.0〜1.0）。</param>
 /// <param name="Spectrum">周波数バンドごとの振幅（0.0〜1.0）。</param>
 public sealed record AudioCaptureDataEventArgs(float LeftLevel, float RightLevel, float[] Spectrum);
+
+/// <summary>
+/// 使用中のオーディオデバイスの情報。
+/// </summary>
+/// <param name="DeviceName">デバイスのフレンドリ名。デバイスが見つからない場合は null。</param>
+/// <param name="SampleRate">サンプルレート（Hz）。デバイスが見つからない場合は 0。</param>
+/// <param name="Channels">チャンネル数。デバイスが見つからない場合は 0。</param>
+public sealed record AudioCaptureDeviceInfo(string? DeviceName, int SampleRate, int Channels);

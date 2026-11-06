@@ -95,6 +95,7 @@ namespace MuseWiser
                 };
             });
             services.AddSingleton<VolumeMeterViewModel>();
+            services.AddSingleton<AudioDeviceInfoViewModel>();
 
             services.AddSingleton<ISettingsService, SettingsService>();
             services.AddTransient<SettingsViewModel>();

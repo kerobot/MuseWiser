@@ -65,6 +65,8 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
 
     public event EventHandler<AudioCaptureDataEventArgs>? DataAvailable;
 
+    public event EventHandler<AudioCaptureDeviceInfo>? DeviceChanged;
+
     public void Start()
     {
         lock (_gate)
@@ -133,6 +135,7 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
             if (!_enumerator.TryGetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia, out var device))
             {
                 _logger.LogWarning("既定の再生デバイスが見つからないため、音量メーターのキャプチャを開始できません。");
+                DeviceChanged?.Invoke(this, new AudioCaptureDeviceInfo(null, 0, 0));
                 return;
             }
 
@@ -152,10 +155,13 @@ public sealed class WasapiLoopbackAudioService : IAudioCaptureService
             recorder.StartRecording();
 
             _recorder = recorder;
+
+            DeviceChanged?.Invoke(this, new AudioCaptureDeviceInfo(device.FriendlyName, _sampleRate, recorder.WaveFormat.Channels));
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "既定の再生デバイスのループバックキャプチャ開始に失敗しました。");
+            DeviceChanged?.Invoke(this, new AudioCaptureDeviceInfo(null, 0, 0));
         }
     }
 
