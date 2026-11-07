@@ -54,7 +54,18 @@
                         </Border>
                     </Grid>
                 </DataTemplate>
-                <Style x:Key="WeatherStatCaptionStyle" TargetType="TextBlock">
+                <Style TargetType="TextBlock">
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="Black"
+                                               Direction="315"
+                                               ShadowDepth="1"
+                                               BlurRadius="3"
+                                               Opacity="0.85" />
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+                <Style x:Key="WeatherStatCaptionStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                     <Setter Property="FontSize" Value="10" />
                     <Setter Property="Foreground" Value="#88FFFFFF" />
                     <Setter Property="HorizontalAlignment" Value="Center" />
@@ -62,7 +73,7 @@
                     <Setter Property="TextOptions.TextFormattingMode" Value="Ideal" />
                     <Setter Property="Typography.Capitals" Value="AllSmallCaps" />
                 </Style>
-                <Style x:Key="WeatherStatValueStyle" TargetType="TextBlock">
+                <Style x:Key="WeatherStatValueStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                     <Setter Property="FontSize" Value="17" />
                     <Setter Property="FontWeight" Value="SemiBold" />
                     <Setter Property="Foreground" Value="White" />
